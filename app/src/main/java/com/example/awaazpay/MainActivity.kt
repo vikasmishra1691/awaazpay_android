@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.awaazpay.data.OnboardingManager
 import com.example.awaazpay.ui.components.*
 import com.example.awaazpay.ui.onboarding.OnboardingScreen
+import com.example.awaazpay.ui.screens.SettingsScreen
 import com.example.awaazpay.ui.theme.AwaazPayTheme
 import com.example.awaazpay.util.Logger
 import com.example.awaazpay.viewmodel.PaymentViewModel
@@ -114,6 +115,9 @@ private fun HomeScreen(viewModel: PaymentViewModel) {
     val feedbackViewModel: FeedbackViewModel = viewModel()
     val feedbackState by feedbackViewModel.uiState.collectAsState()
 
+    // Navigation state
+    var showSettings by remember { mutableStateOf(false) }
+
     // Refresh listener state when app resumes
     LaunchedEffect(Unit) {
         viewModel.refreshListenerState()
@@ -157,19 +161,34 @@ private fun HomeScreen(viewModel: PaymentViewModel) {
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { innerPadding ->
-        HomeScreen(
-            uiState = uiState,
+    if (showSettings) {
+        // Show Settings Screen
+        SettingsScreen(
+            announcementsEnabled = uiState.announcementsEnabled,
+            selectedLanguage = uiState.selectedLanguage,
+            autoStartOnBoot = uiState.autoStartOnBoot,
             onToggleAnnouncements = viewModel::toggleAnnouncements,
             onLanguageSelected = viewModel::setLanguage,
             onToggleAutoStart = viewModel::toggleAutoStart,
-            feedbackState = feedbackState,
-            onSubmitFeedback = feedbackViewModel::submitFeedback,
-            modifier = Modifier.padding(innerPadding)
+            onBackClick = { showSettings = false }
         )
+    } else {
+        // Show Home Screen
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { innerPadding ->
+            HomeScreen(
+                uiState = uiState,
+                onToggleAnnouncements = viewModel::toggleAnnouncements,
+                onLanguageSelected = viewModel::setLanguage,
+                onToggleAutoStart = viewModel::toggleAutoStart,
+                feedbackState = feedbackState,
+                onSubmitFeedback = feedbackViewModel::submitFeedback,
+                onSettingsClick = { showSettings = true },
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
     }
 }
 
@@ -181,6 +200,7 @@ fun HomeScreen(
     onToggleAutoStart: (Boolean) -> Unit,
     feedbackState: FeedbackUiState,
     onSubmitFeedback: (String) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -192,8 +212,8 @@ fun HomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Premium App Header
-        PremiumHeader()
+        // Premium App Header with Settings Icon
+        PremiumHeaderWithSettings(onSettingsClick = onSettingsClick)
 
         // Service Status Card
         ServiceStatusCard(isActive = uiState.isListenerActive)
@@ -230,51 +250,14 @@ fun HomeScreen(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
-        Divider(modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Settings Section
-        SectionTitle(text = "Settings")
-
-        SettingToggle(
-            title = "Payment Announcements",
-            description = "Announce payments using TTS",
-            checked = uiState.announcementsEnabled,
-            onCheckedChange = onToggleAnnouncements
-        )
-
-        LanguageSelector(
-            selectedLanguage = uiState.selectedLanguage,
-            onLanguageSelected = onLanguageSelected
-        )
-
-        SettingToggle(
-            title = "Start automatically after restart",
-            description = "Launch service when device boots",
-            checked = uiState.autoStartOnBoot,
-            onCheckedChange = onToggleAutoStart
-        )
-
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Divider(modifier = Modifier.padding(horizontal = 16.dp))
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Supported Apps
-        SupportedAppsSection()
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         // Give Feedback Button
         FeedbackButton(onClick = { showFeedbackDialog = true })
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Privacy Information
-        PrivacyCard()
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+        // Settings Navigation Card
+        SettingsNavigationCard(onClick = onSettingsClick)
 
         Spacer(modifier = Modifier.height(32.dp))
     }

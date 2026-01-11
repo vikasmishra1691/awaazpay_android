@@ -2,7 +2,9 @@ package com.example.awaazpay.ui.components
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -23,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.awaazpay.util.Logger
 import java.util.Locale
 
 /**
@@ -129,6 +133,119 @@ fun PremiumHeader() {
                         color = Color.White.copy(alpha = 0.85f),
                         letterSpacing = 0.2.sp,
                         lineHeight = 16.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Premium header with settings icon
+ * Same as PremiumHeader but includes a settings icon button
+ */
+@Composable
+fun PremiumHeaderWithSettings(onSettingsClick: () -> Unit) {
+    // Dark mode detection
+    val isDarkMode = androidx.compose.foundation.isSystemInDarkTheme()
+
+    // Adaptive gradient colors
+    val gradientColors = if (isDarkMode) {
+        listOf(
+            Color(0xFF4F46E5), // Darker indigo
+            Color(0xFF7C3AED), // Darker purple
+            Color(0xFF9333EA)  // Darker light purple
+        )
+    } else {
+        listOf(
+            Color(0xFF6366F1), // Indigo
+            Color(0xFF8B5CF6), // Purple
+            Color(0xFFA855F7)  // Light purple
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = gradientColors
+                    )
+                )
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Brand icon with subtle background
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🔊",
+                            fontSize = 28.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // App name and subtitle
+                    Column {
+                        Text(
+                            text = "AwaazPay",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp,
+                            lineHeight = 32.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Smart UPI Payment Announcements",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White.copy(alpha = 0.85f),
+                            letterSpacing = 0.2.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                // Settings Icon Button
+                IconButton(
+                    onClick = onSettingsClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -356,7 +473,7 @@ fun EarningsCard(
                 text = "₹${String.format(Locale.US, "%.2f", amount)}",
                 fontSize = if (isLarge) 38.sp else 30.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = accentColor,
+                color = Color(0xFF4CAF50), // Green color for all amounts
                 letterSpacing = (-0.5).sp
             )
         }
@@ -722,6 +839,220 @@ fun PillButton(
                 fontSize = 15.sp,
                 color = textColor
             )
+        }
+    }
+}
+
+/**
+ * Helper function to check if battery optimization is disabled for this app
+ */
+private fun isBatteryOptimizationDisabled(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val isIgnoring = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+        Logger.d("Battery optimization check: isIgnoring = $isIgnoring")
+        isIgnoring
+    } else {
+        Logger.d("Battery optimization check: API < M, returning true")
+        true // Not applicable for older versions
+    }
+}
+
+/**
+ * Helper function to open battery optimization settings
+ */
+private fun openBatteryOptimizationSettings(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        // Check current optimization status
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val isIgnoring = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+        Logger.d("Opening battery optimization settings - current status: isIgnoring = $isIgnoring")
+
+        try {
+            // Use the exact intent as specified
+            val intent = Intent(
+                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:${context.packageName}")
+            )
+            Logger.d("Attempting to start battery optimization intent")
+            context.startActivity(intent)
+            Logger.d("Battery optimization intent fired successfully")
+        } catch (e: Exception) {
+            Logger.e("Failed to open battery optimization request: ${e.message}", e)
+            // Fallback to general battery optimization settings
+            try {
+                Logger.d("Attempting fallback to general battery optimization settings")
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                context.startActivity(intent)
+                Logger.d("Fallback intent fired successfully")
+            } catch (ex: Exception) {
+                Logger.e("Fallback also failed: ${ex.message}", ex)
+            }
+        }
+    } else {
+        Logger.d("Battery optimization not applicable for API < M")
+    }
+}
+
+/**
+ * Battery Optimization Settings Card
+ * Allows users to disable battery optimization for reliable background announcements
+ */
+@Composable
+fun BatteryOptimizationCard() {
+    val context = LocalContext.current
+    var isOptimizationDisabled by remember { mutableStateOf(isBatteryOptimizationDisabled(context)) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    // Refresh state when app resumes (user returns from settings)
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isOptimizationDisabled = isBatteryOptimizationDisabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Press state for animation
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Animate scale on press
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "battery_scale"
+    )
+
+    // Animate elevation on press
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed) 4.dp else 2.dp,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "battery_elevation"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .animateContentSize(),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isOptimizationDisabled)
+                Color(0xFFF0F9FF) // Light blue tint when enabled
+            else
+                Color(0xFFFFF9E6) // Light yellow/warning tint when disabled
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isOptimizationDisabled)
+                Color(0xFF2196F3).copy(alpha = 0.3f)
+            else
+                Color(0xFFFFA726).copy(alpha = 0.4f)
+        ),
+        onClick = {
+            Logger.d("Battery optimization card clicked - isOptimizationDisabled: $isOptimizationDisabled")
+            if (!isOptimizationDisabled) {
+                Logger.d("Opening battery optimization settings")
+                openBatteryOptimizationSettings(context)
+            } else {
+                Logger.d("Battery optimization already disabled, no action needed")
+            }
+        },
+        interactionSource = interactionSource
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Battery icon
+                    Text(
+                        text = if (isOptimizationDisabled) "🔋" else "⚡",
+                        fontSize = 28.sp,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+
+                    Column {
+                        Text(
+                            text = "Allow background activity",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF2C2C2C)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        if (isOptimizationDisabled) {
+                            Text(
+                                text = "Background activity allowed ✓",
+                                fontSize = 13.sp,
+                                color = Color(0xFF4CAF50),
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Text(
+                                text = "Required for instant announcements",
+                                fontSize = 13.sp,
+                                color = Color(0xFF666666),
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+
+                // Show arrow icon if not enabled
+                if (!isOptimizationDisabled) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "Open settings",
+                        tint = Color(0xFFFFA726),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Show explanation text
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White.copy(alpha = 0.7f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Some phones aggressively restrict background apps. Allowing background activity ensures announcements work instantly and reliably.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF555555),
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
         }
     }
 }
@@ -1134,6 +1465,104 @@ fun TransactionHistoryCard(
             Icon(
                 imageVector = androidx.compose.material.icons.Icons.Default.KeyboardArrowRight,
                 contentDescription = "View history",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsNavigationCard(
+    onClick: () -> Unit
+) {
+    // Press state for animation
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    // Animate scale on press
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "settings_card_scale"
+    )
+
+    // Animate elevation on press
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed) 6.dp else 2.dp,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
+        ),
+        label = "settings_card_elevation"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        onClick = onClick,
+        interactionSource = interactionSource,
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFAFAF8)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: Settings Icon
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = Color(0xFF5E35B1),
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Center: Title and Subtitle
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Settings",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF2C2C2C)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Manage announcements, language & system permissions",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color(0xFF999999),
+                    lineHeight = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Right: Arrow Icon
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.Default.KeyboardArrowRight,
+                contentDescription = "Open settings",
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )

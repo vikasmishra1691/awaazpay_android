@@ -193,7 +193,7 @@ private fun OnboardingPage2() {
         features = listOf(
             "🔔 Notification Access: Read UPI payment notifications to announce them",
             "⚡ Foreground Service: Stay active for reliable, instant announcements",
-            "🔒 Your payment data stays on your device"
+            "🔋 Battery Optimization: Disable to ensure announcements work in the background"
         )
     )
 }
