@@ -177,7 +177,7 @@ private fun OnboardingPage1() {
         description = "Never miss a payment again. Get instant voice announcements when you receive money through UPI.",
         features = listOf(
             "🎯 Instant announcements in English or Hindi",
-            "💰 Know who paid you and how much",
+            "₹ Know who paid you and how much",
             "🔔 Works with all major UPI apps"
         )
     )

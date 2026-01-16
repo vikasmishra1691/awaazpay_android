@@ -10,6 +10,7 @@ import com.example.awaazpay.data.PaymentDatabase
 import com.example.awaazpay.data.PaymentRepository
 import com.example.awaazpay.util.ISTTimeHelper
 import com.example.awaazpay.util.Logger
+import com.example.awaazpay.util.PermissionHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,7 +57,8 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
 
     private fun loadSettings() {
         viewModelScope.launch {
-            val isActive = prefs.getBoolean("listener_active", false)
+            // Check actual system permission state (more reliable than SharedPreferences on fresh install)
+            val isActive = PermissionHelper.isNotificationListenerEnabled(getApplication())
             val announcementsEnabled = prefs.getBoolean("announcements_enabled", true)
             val language = prefs.getString("language", "en") ?: "en"
             val autoStart = prefs.getBoolean("auto_start_on_boot", false)
@@ -151,7 +153,8 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshListenerState() {
         viewModelScope.launch {
-            val isActive = prefs.getBoolean("listener_active", false)
+            // Check actual system permission state (more reliable than SharedPreferences)
+            val isActive = PermissionHelper.isNotificationListenerEnabled(getApplication())
             _uiState.value = _uiState.value.copy(isListenerActive = isActive)
             Logger.d("Listener state refreshed: $isActive")
         }

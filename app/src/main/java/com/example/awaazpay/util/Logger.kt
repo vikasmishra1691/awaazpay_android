@@ -13,12 +13,15 @@ object Logger {
     }
 
     fun i(message: String) {
-        // Always log info messages for critical events
-        Log.i(TAG, message)
+        // Only log info messages in debug mode
+        // In production, only errors (Logger.e) are logged
+        if (BuildConfig.DEBUG_MODE) {
+            Log.i(TAG, message)
+        }
     }
 
     fun e(message: String, throwable: Throwable? = null) {
-        // Always log errors
+        // Always log errors for crash diagnosis
         if (throwable != null) {
             Log.e(TAG, message, throwable)
         } else {

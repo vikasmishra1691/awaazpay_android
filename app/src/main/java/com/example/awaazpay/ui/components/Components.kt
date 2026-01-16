@@ -269,45 +269,15 @@ fun ServiceStatusCard(isActive: Boolean) {
         label = "pulse_alpha"
     )
 
-    // Press state for animation
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    // Animate scale on press
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
-        ),
-        label = "status_scale"
-    )
-
-    // Animate elevation on press
-    val elevation by animateDpAsState(
-        targetValue = if (isPressed) 6.dp else 4.dp,
-        animationSpec = androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
-        ),
-        label = "status_elevation"
-    )
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            },
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+            .padding(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
-        ),
-        onClick = { /* Optional: Could navigate to settings */ },
-        interactionSource = interactionSource
+        )
     ) {
         Box(
             modifier = Modifier
@@ -329,67 +299,74 @@ fun ServiceStatusCard(isActive: Boolean) {
                         )
                     }
                 )
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                // Left side: Status with dot and text
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    // Glowing dot with pulse animation
-                    Canvas(
-                        modifier = Modifier.size(10.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        drawCircle(
+                        // Glowing dot with pulse animation
+                        Canvas(
+                            modifier = Modifier.size(10.dp)
+                        ) {
+                            drawCircle(
+                                color = Color.White,
+                                alpha = if (isActive) pulseAlpha else 1f
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = if (isActive) "ACTIVE" else "INACTIVE",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            alpha = if (isActive) pulseAlpha else 1f
+                            letterSpacing = 0.8.sp
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = if (isActive) "ACTIVE" else "INACTIVE",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
+                        text = if (isActive)
+                            "Monitoring UPI payments"
+                        else
+                            "Notification access required",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color.White.copy(alpha = 0.9f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = if (isActive)
-                        "Monitoring incoming UPI payments"
-                    else
-                        "Notification access required",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-
-                if (!isActive) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
+                // Right side: Toggle Switch
+                Switch(
+                    checked = isActive,
+                    onCheckedChange = {
+                        // Open notification listener settings
+                        try {
                             val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                             context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color(0xFFF44336)
-                        ),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                    ) {
-                        Text("Enable Access", fontWeight = FontWeight.SemiBold)
-                    }
-                }
+                            Logger.d("Opening notification listener settings")
+                        } catch (e: Exception) {
+                            Logger.e("Failed to open notification settings: ${e.message}")
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color.White.copy(alpha = 0.5f),
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.3f)
+                    )
+                )
             }
         }
     }
@@ -845,6 +822,7 @@ fun PillButton(
 
 /**
  * Helper function to check if battery optimization is disabled for this app
+ * Does NOT rely on SharedPreferences - always checks real system state
  */
 private fun isBatteryOptimizationDisabled(context: Context): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -860,23 +838,26 @@ private fun isBatteryOptimizationDisabled(context: Context): Boolean {
 
 /**
  * Helper function to open battery optimization settings
+ * ALWAYS opens the same system screen using ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+ * This allows users to both grant and revoke the permission from the same interface
  */
 private fun openBatteryOptimizationSettings(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        // Check current optimization status
+        // Check current optimization status for logging only
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
         val isIgnoring = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
         Logger.d("Opening battery optimization settings - current status: isIgnoring = $isIgnoring")
 
         try {
-            // Use the exact intent as specified
+            // ALWAYS use the same intent - ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+            // This shows the system dialog that works for both granting and revoking
             val intent = Intent(
                 Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                 Uri.parse("package:${context.packageName}")
             )
-            Logger.d("Attempting to start battery optimization intent")
+            Logger.d("Starting battery optimization request intent")
             context.startActivity(intent)
-            Logger.d("Battery optimization intent fired successfully")
+            Logger.d("Battery optimization intent started successfully")
         } catch (e: Exception) {
             Logger.e("Failed to open battery optimization request: ${e.message}", e)
             // Fallback to general battery optimization settings
@@ -884,7 +865,7 @@ private fun openBatteryOptimizationSettings(context: Context) {
                 Logger.d("Attempting fallback to general battery optimization settings")
                 val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                 context.startActivity(intent)
-                Logger.d("Fallback intent fired successfully")
+                Logger.d("Fallback intent started successfully")
             } catch (ex: Exception) {
                 Logger.e("Fallback also failed: ${ex.message}", ex)
             }
@@ -945,10 +926,17 @@ fun BatteryOptimizationCard() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .then(
+                if (!isOptimizationDisabled) {
+                    // Only apply scale animation when clickable (permission not granted)
+                    Modifier.graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                } else {
+                    Modifier
+                }
+            )
             .animateContentSize(),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
@@ -965,16 +953,19 @@ fun BatteryOptimizationCard() {
             else
                 Color(0xFFFFA726).copy(alpha = 0.4f)
         ),
-        onClick = {
-            Logger.d("Battery optimization card clicked - isOptimizationDisabled: $isOptimizationDisabled")
-            if (!isOptimizationDisabled) {
-                Logger.d("Opening battery optimization settings")
+        onClick = if (!isOptimizationDisabled) {
+            // Only clickable when permission NOT granted
+            {
+                Logger.d("Battery optimization card clicked - opening settings")
                 openBatteryOptimizationSettings(context)
-            } else {
-                Logger.d("Battery optimization already disabled, no action needed")
+            }
+        } else {
+            // Not clickable when permission granted
+            {
+                Logger.d("Battery optimization already granted - card not clickable")
             }
         },
-        interactionSource = interactionSource
+        interactionSource = if (!isOptimizationDisabled) interactionSource else remember { MutableInteractionSource() }
     ) {
         Column(
             modifier = Modifier
@@ -1024,7 +1015,7 @@ fun BatteryOptimizationCard() {
                     }
                 }
 
-                // Show arrow icon if not enabled
+                // Show arrow icon only when permission NOT granted
                 if (!isOptimizationDisabled) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowRight,
